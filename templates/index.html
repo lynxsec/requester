@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HTTP Request Tester</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <script src="/static/http.min.js"></script>
+    <style>
+        .container {
+            display: flex;
+            justify-content: space-between;
+        }
+        .editor {
+            width: 48%;
+        }
+        button {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="editor">
+            <h3>Request:</h3>
+            <textarea id="request-box"></textarea>
+        </div>
+        <div class="editor">
+            <h3>Response:</h3>
+            <textarea id="response-box" readonly></textarea>
+        </div>
+    </div>
+    <button onclick="sendHttpReq()">Run</button>
+
+    <script>
+        var requestEditor = CodeMirror.fromTextArea(document.getElementById("request-box"), {
+            lineNumbers: true,
+			mode: "http",
+			matchBrackets: true,
+			lineWrapping: true,
+			viewportMargin: Infinity,
+			styleSelectedText: true
+        });
+        var responseEditor = CodeMirror.fromTextArea(document.getElementById("response-box"), {
+            lineNumbers: true,
+            mode: "http",
+            readOnly: "nocursor",
+            lineWrapping: true
+        });
+					
+
+        function sendHttpReq() {
+            const requestData = requestEditor.getValue();
+            const encodedData = btoa(requestData); // Base64 encoding the request data
+
+            fetch('/send-request', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ data: encodedData }) // Sending the encoded data
+            }).then(response => response.json())
+            .then(data => {
+                if (data.Error) {
+                throw new Error(data.Response);
+            }
+            responseEditor.setValue(data.Response);
+            }).catch(error => {
+                responseEditor.setValue("Error: " + error.message);
+            });
+        }
+    </script>
+</body>
+</html>

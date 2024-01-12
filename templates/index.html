@@ -16,6 +16,9 @@
         button {
             margin-top: 20px;
         }
+        .auth-form {
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
@@ -29,16 +32,39 @@
             <textarea id="response-box" readonly></textarea>
         </div>
     </div>
+
+    <div class="auth-form">
+        <label><input type="radio" name="auth" value="no" checked="checked" onclick="toggleAuthentication(false)"> No</label>
+        <label><input type="radio" name="auth" value="yes" onclick="toggleAuthentication(true)"> Yes</label>
+
+        <div id="additionalOptions" style="display:none;">
+            <label><input type="radio" name="option" value="X" onclick="toggleOptions('X')"> X</label>
+            <label><input type="radio" name="option" value="Y" onclick="toggleOptions('Y')"> Y</label>
+
+            <div id="optionXInputs" style="display:none;">
+                <label>A: <input type="text" name="A"></label><br>
+                <label>B: <input type="text" name="B"></label><br>
+                <label>C: <input type="text" name="C"></label><br>
+                <label>D: <input type="text" name="D"></label><br>
+                <label>E: <input type="text" name="E"></label><br>
+            </div>
+
+            <div id="optionYTextbox" style="display:none;">
+                <label>F: <textarea name="F"></textarea></label><br>
+            </div>
+        </div>
+    </div>
+
     <button onclick="sendHttpReq()">Run</button>
 
     <script>
         var requestEditor = CodeMirror.fromTextArea(document.getElementById("request-box"), {
             lineNumbers: true,
-			mode: "http",
-			matchBrackets: true,
-			lineWrapping: true,
-			viewportMargin: Infinity,
-			styleSelectedText: true
+            mode: "http",
+            matchBrackets: true,
+            lineWrapping: true,
+            viewportMargin: Infinity,
+            styleSelectedText: true
         });
         var responseEditor = CodeMirror.fromTextArea(document.getElementById("response-box"), {
             lineNumbers: true,
@@ -46,22 +72,50 @@
             readOnly: "nocursor",
             lineWrapping: true
         });
-					
+
+        function toggleAuthentication(isAuth) {
+            document.getElementById('additionalOptions').style.display = isAuth ? 'block' : 'none';
+            document.getElementById('optionXInputs').style.display = 'none';
+            document.getElementById('optionYTextbox').style.display = 'none';
+        }
+
+        function toggleOptions(option) {
+            document.getElementById('optionXInputs').style.display = option === 'X' ? 'block' : 'none';
+            document.getElementById('optionYTextbox').style.display = option === 'Y' ? 'block' : 'none';
+        }
 
         function sendHttpReq() {
             const requestData = requestEditor.getValue();
-            const encodedData = btoa(requestData); // Base64 encoding the request data
+            const encodedData = btoa(requestData);
+
+            let authData = {};
+            if (document.querySelector('input[name="auth"]:checked').value === "yes") {
+                const selectedOption = document.querySelector('input[name="option"]:checked').value;
+                authData.option = selectedOption;
+
+                if (selectedOption === 'X') {
+                    ['A', 'B', 'C', 'D', 'E'].forEach(field => {
+                        const inputValue = document.querySelector(`input[name="${field}"]`).value;
+                        if (inputValue) {
+                            authData[field] = inputValue;
+                        }
+                    });
+                } else if (selectedOption === 'Y') {
+                    const textboxValue = document.querySelector('textarea[name="F"]').value;
+                    if (textboxValue) {
+                        authData['F'] = btoa(textboxValue); // Base64 encoding the value of textbox F
+                    }
+                }
+            }
 
             fetch('/send-request', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ data: encodedData }) // Sending the encoded data
-            }).then(response => response.json())
+                body: JSON.stringify({ data: encodedData, authData: authData })
+            })
+            .then(response => response.json())
             .then(data => {
-                if (data.Error) {
-                throw new Error(data.Response);
-            }
-            responseEditor.setValue(data.Response);
+                responseEditor.setValue(data.Response);
             }).catch(error => {
                 responseEditor.setValue("Error: " + error.message);
             });
